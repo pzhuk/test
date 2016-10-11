@@ -1,0 +1,10 @@
+Reports with wrong ownership:
+
+{% for dir in dirstats.results %}
+
+Directory: {{ dir.item|basename }}
+Ownership: {{ dir.stat.pw_name }} Status: {{ 'WRONG' if dir.stat.pw_name[2:]!=dir.item[:-2]|basename else 'OK' }}
+Group: {{ dir.stat.gr_name }} Status: {{ 'WRONG' if dir.stat.gr_name!=expected_group else 'OK' }}
+Permissions: {{ dir.stat.mode }} Status: {{ 'WRONG' if dir.stat.mode!=expected_perm else 'OK' }}
+
+{% endfor %}

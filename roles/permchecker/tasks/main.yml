@@ -1,0 +1,14 @@
+---
+  - name: list directories in target dir
+    shell: find {{ target_dir }} -type d 
+    register: dirs
+
+  - name: collect dir stats
+    stat: path="{{ item }}" get_md5=no get_checksum=no
+    with_items: "{{dirs.stdout_lines}}"
+    register: dirstats
+
+  - debug: var=dirstats
+
+  - name: Generate report
+    template: src=report.j2 dest="/tmp/report.txt"
