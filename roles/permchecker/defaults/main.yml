@@ -2,3 +2,4 @@
 target_dir: "/amp/httpd/conf"
 expected_group: "htprocs"
 expected_perm: "0755"
+allstats: []

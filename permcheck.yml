@@ -1,7 +1,42 @@
 ---
-- hosts: "localhost"
-  connection: local
-  gather_facts: False
+- hosts: "localhost"  # change this to address your target hosts properly
+  connection: local   # and remove this line
+
+  vars:
+    report_file: "/tmp/report.txt"
+    report_file_tmp: "/tmp/{{ ansible_hostname }}_permcheck.tmp"
+
+  pre_tasks:
+    - name: Cleanup all tmp report files
+      local_action: shell rm {{ report_file_tmp }}
+      ignore_errors: yes
+    - name: Generate report header
+      local_action: template src=header.j2 dest="/tmp/{{ansible_hostname}}_header.tmp"
+    - name: clean tmp report file
+      local_action: shell rm "{{ report_file_tmp }}"
+      ignore_errors: yes
 
   roles:
-    - permchecker
+    - { role: permchecker }
+    - { role: permchecker, target_dir: "/logs/httpd/" }
+    - { role: permchecker, target_dir: "/amp/httpd/bin/", clear_pattern: "^httpd-init-", expected_perm: "0700" }
+    - { role: permchecker, target_dir: "/amp/sites/", expected_user: "mop", expected_group: "bucket" }
+
+  post_tasks:
+    #Cleanup
+    - local_action: shell cat "/tmp/{{ansible_hostname}}_header.tmp" > /tmp/{{ ansible_hostname }}_report.txt
+    - local_action: shell cat "{{ report_file_tmp }}" >> /tmp/{{ ansible_hostname }}_report.txt
+    - local_action: shell rm "/tmp/{{ansible_hostname}}_header.tmp" "{{ report_file_tmp }}"
+
+
+- hosts: "localhost" # This one always be local, do not change
+  connection: local
+  gather_facts: no
+
+  vars:
+    report_file: "/tmp/report.txt"
+ 
+  tasks:
+    - name: Concat all tmp reports to a single main report
+      local_action: shell cat /tmp/*_report.txt > {{ report_file }}
+    - local_action: shell rm /tmp/*_report.txt

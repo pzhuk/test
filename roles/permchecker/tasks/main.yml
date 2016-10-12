@@ -1,6 +1,7 @@
 ---
   - name: list directories in target dir
-    shell: find {{ target_dir }} -type d 
+    shell: find {{ target_dir }}/* -type d
+    changed_when: False
     register: dirs
 
   - name: collect dir stats
@@ -8,7 +9,33 @@
     with_items: "{{dirs.stdout_lines}}"
     register: dirstats
 
-  - debug: var=dirstats
+  - name: Verify ownership
+    shell: echo "Directory {{ item.item }} has wrong ownership {{ item.stat.pw_name|default('') }}"
+    when: (expected_user is not defined and item.stat.pw_name|default('')|regex_replace('^..','')!=item.item[:-2]|basename|regex_replace(clear_pattern|default(''),'')) or (expected_user is defined and expected_user!=item.stat.pw_name|default(''))
+    with_items: "{{ dirstats.results }}"
+    register: ownership_results
+
+  - debug: var=ownership_results.results|map(attribute='stdout_lines')|list
+
+  - name: Verify group ownership
+    shell: echo "Directory {{ item.item }}, has wrong group {{ item.stat.gr_name|default('') }}"
+    when: item.stat.gr_name!=expected_group
+    with_items: "{{ dirstats.results }}"
+    register: group_results
+
+  - debug: var=group_results.results|map(attribute='stdout_lines')|list
+
+  - name: Verify permission mask
+    shell: echo "Directory {{ item.item }} has wrong permission {{ item.stat.mode }}"
+    when: item.stat.mode!=expected_perm
+    with_items: "{{ dirstats.results }}"
+    register: mask_results
+  
+  - debug: var=mask_results.results|map(attribute='stdout_lines')|list
 
   - name: Generate report
-    template: src=report.j2 dest="/tmp/report.txt"
+    local_action: template src=report.j2 dest="/tmp/{{ansible_hostname}}_permcheck"
+
+  - name: Concat report
+    local_action: shell cat "/tmp/{{ansible_hostname}}_permcheck" >> "{{ report_file_tmp }}"
+  - local_action: shell rm "/tmp/{{ansible_hostname}}_permcheck"

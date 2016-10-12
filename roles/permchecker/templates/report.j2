@@ -1,10 +1,14 @@
-Reports with wrong ownership:
+
+Directory checked: {{target_dir}}
 
 {% for dir in dirstats.results %}
-
-Directory: {{ dir.item|basename }}
-Ownership: {{ dir.stat.pw_name }} Status: {{ 'WRONG' if dir.stat.pw_name[2:]!=dir.item[:-2]|basename else 'OK' }}
-Group: {{ dir.stat.gr_name }} Status: {{ 'WRONG' if dir.stat.gr_name!=expected_group else 'OK' }}
-Permissions: {{ dir.stat.mode }} Status: {{ 'WRONG' if dir.stat.mode!=expected_perm else 'OK' }}
-
+{% if (expected_user is not defined and dir.stat.pw_name|default('')|regex_replace('^..','')!=dir.item[:-2]|basename|regex_replace(clear_pattern|default(''),'')) or (expected_user is defined and expected_user!=dir.stat.pw_name|default('')) %}
+Directory: {{ dir.item|basename }} has wrong ownership: {{ dir.stat.pw_name|default('') }}
+{% endif %}
+{% if dir.stat.gr_name|default('')!=expected_group %}
+Directory: {{ dir.item|basename }} has wrong group: {{ dir.stat.gr_name|default('') }} 
+{% endif %}
+{% if dir.stat.mode!=expected_perm %}
+Directory: {{ dir.item|basename }} has wrong permissions: {{ dir.stat.mode }}
+{% endif %}
 {% endfor %}
